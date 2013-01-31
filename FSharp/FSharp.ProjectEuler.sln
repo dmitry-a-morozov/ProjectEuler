@@ -3,7 +3,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{304CB63B-AFDF-495B-830C-D6408ABA6F7B}"
 	ProjectSection(SolutionItems) = preProject
-		1.fsx = 1.fsx
+		01.fxs = 01.fxs
+		02.fxs = 02.fxs
+		03.fxs = 03.fxs
+		04.fxs = 04.fxs
+		05.fsx = 05.fsx
+		06.fsx = 06.fsx
+		07.fsx = 07.fsx
+		08.fsx = 08.fsx
+		09.fsx = 09.fsx
+		10.fsx = 10.fsx
 	EndProjectSection
 EndProject
 Global
