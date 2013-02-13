@@ -17,6 +17,6 @@ let spellNumber n =
                 yield! dozens.[moduloOf100 / 10] + ``1..9``.[moduloOf100 % 10]
     ]
 
-[ 1 .. 100 ]
+[ 1 .. 1000 ]
 |> List.collect spellNumber
 |> List.length
