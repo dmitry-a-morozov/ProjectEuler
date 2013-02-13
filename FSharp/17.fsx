@@ -11,12 +11,12 @@ let spellNumber n =
             let hundredsDigit = n / 100
             if hundredsDigit > 0 then yield! sprintf "%shundred" ``1..9``.[hundredsDigit] 
             let moduloOf100 = n % 100
-            if moduloOf100 > 0 then yield! "and"
+            if hundredsDigit <> 0 && moduloOf100 <> 0 then yield! "and"
             if moduloOf100 >= 10 && moduloOf100 <= 19 then yield! ``10..19``.[moduloOf100 - 10]
             else
                 yield! dozens.[moduloOf100 / 10] + ``1..9``.[moduloOf100 % 10]
     ]
 
-[ 1 .. 1000 ]
+[ 1 .. 100 ]
 |> List.collect spellNumber
 |> List.length
