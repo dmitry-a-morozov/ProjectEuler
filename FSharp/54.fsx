@@ -1,4 +1,6 @@
 ﻿
+//TYPES
+
 type Suit = 
     Spades | Diamonds | Clubs | Hearts
     static member Parse = function
@@ -21,53 +23,17 @@ let Ace = 14
 
 type Card = Face * Suit
 
-let parseFace = function
-    | 'A' -> Ace | 'K' -> King | 'Q' -> Queen | 'J' -> Jack
-    | 'T' -> 10
-    | x when x >= '2' && x <= '9' -> int x - int '0'
-    | c -> invalidArg "Face" (string c)
-
 type Hand = Card[]
 
-let parseCard (s : string) = 
-    match s.ToCharArray() with
-    | [| face ; suit |] -> parseFace face, Suit.Parse suit
-    | _ -> invalidArg "Card" s
+//RULES
 
-let twoHands (s :string) = 
-    let xs = s.Split(' ')
-    assert (xs.Length = 10)
-    xs.[..4] |> Array.map parseCard |> Array.sort |> Array.rev,
-    xs.[5..] |> Array.map parseCard |> Array.sort |> Array.rev
-
-let consecutive(c1 : Card, c2 : Card) = 
-    match c1, c2 with
-    | (Ace, _), (King, _) -> true
-    | (King, _), (Queen, _) -> true
-    | (Queen, _), (Jack, _) -> true
-    | (Jack, _), (10, _) -> true
-    | (x, _), (y, _) -> x - 1 = y 
-
-let (|Flush|_|) (hand : Hand) = if hand |> Array.map snd |> Seq.distinct |> Seq.length = 1 then Some() else None
-let (|Straight|_|) (hand : Hand) = if hand |> Seq.pairwise |> Seq.map consecutive |> Seq.reduce (&&) then Some() else None
-let (|StraightFlush|_|) = function | Straight & Flush -> Some() | _ -> None
-let (|RoyalFlush|_|) = function | StraightFlush & [|(Ace, _); _|] -> Some() | _ -> None
-
-let (|FourOfAKind|_|) (hand : Hand) = 
+let (|OnePairs|_|) (hand : Hand) = 
     match hand with
-    | [| (v1, _); (v2, _); (v3, _); (v4, _); tail |] 
-    | [| tail; (v1, _); (v2, _); (v3, _); (v4, _) |] when v1 = v2 && v2 = v3 && v3 = v4 -> Some(v1, tail)
-    | _ -> None
-
-let (|ThreeOfAKind|_|) (hand : Hand) = 
-    match hand with
-    | [| (v1, _); (v2, _); (v3, _); x; y |] 
-    | [| x; (v1, _); (v2, _); (v3, _); y |] 
-    | [| x; y; (v1, _); (v2, _); (v3, _) |] when v1 = v2 && v2 = v3 -> Some(v1, (x, y))
-    | _ -> None
-
-let (|FullHouse|_|) = function
-    | ThreeOfAKind(three, ((x, _), (y, _))) when x = y -> Some(three, x)
+    | [| (v1, _); (v2, _); x; y; z |]  
+    | [| x; (v1, _); (v2, _); y; z |] 
+    | [| x; y; (v1, _); (v2, _); z |] 
+    | [| x; y; z; (v1, _); (v2, _) |] 
+        when v1 = v2 -> Some(v1, (x, y, z))
     | _ -> None
 
 let (|TwoPairs|_|) (hand : Hand) = 
@@ -78,13 +44,42 @@ let (|TwoPairs|_|) (hand : Hand) =
         when v11 = v12 && v21 = v22 -> Some(v11, v21, tail)
     | _ -> None
 
-let (|OnePairs|_|) (hand : Hand) = 
+let (|ThreeOfAKind|_|) (hand : Hand) = 
     match hand with
-    | [| (v1, _); (v2, _); x; y; z |]  
-    | [| x; (v1, _); (v2, _); y; z |] 
-    | [| x; y; (v1, _); (v2, _); z |] 
-    | [| x; y; z; (v1, _); (v2, _) |] 
-        when v1 = v2 -> Some(v1, (x, y, z))
+    | [| (v1, _); (v2, _); (v3, _); x; y |] 
+    | [| x; (v1, _); (v2, _); (v3, _); y |] 
+    | [| x; y; (v1, _); (v2, _); (v3, _) |] when v1 = v2 && v2 = v3 -> Some(v1, (x, y))
+    | _ -> None
+
+let (|FourOfAKind|_|) (hand : Hand) = 
+    match hand with
+    | [| (v1, _); (v2, _); (v3, _); (v4, _); tail |] 
+    | [| tail; (v1, _); (v2, _); (v3, _); (v4, _) |] when v1 = v2 && v2 = v3 && v3 = v4 -> Some(v1, tail)
+    | _ -> None
+
+let (|Straight|_|) (hand : Hand) = 
+    let consecutive(c1 : Card, c2 : Card) = 
+        match c1, c2 with
+        | (Ace, _), (King, _) -> true
+        | (King, _), (Queen, _) -> true
+        | (Queen, _), (Jack, _) -> true
+        | (Jack, _), (10, _) -> true
+        | (x, _), (y, _) -> x - 1 = y 
+
+    if hand |> Seq.pairwise |> Seq.map consecutive |> Seq.reduce (&&) then Some() else None
+
+let (|Flush|_|) (hand : Hand) = if hand |> Array.map snd |> Seq.distinct |> Seq.length = 1 then Some() else None
+
+let (|FullHouse|_|) = function 
+    | ThreeOfAKind(three, ((x, _), (y, _))) when x = y -> Some(three, x) 
+    | _ -> None
+
+let (|StraightFlush|_|) = function 
+    | Straight & Flush -> Some() 
+    | _ -> None
+
+let (|RoyalFlush|_|) = function 
+    | StraightFlush & [|(Ace, _); _|] -> Some() 
     | _ -> None
 
 let compareCards t1 t2 = 
@@ -132,6 +127,27 @@ let compareHands(first, second) =
 
     | _ -> compareCards first second
 
+//PLUMBING
+
+let parseFace = function
+    | 'A' -> Ace | 'K' -> King | 'Q' -> Queen | 'J' -> Jack
+    | 'T' -> 10
+    | x when x >= '2' && x <= '9' -> int x - int '0'
+    | c -> invalidArg "Face" (string c)
+
+let parseCard (s : string) = 
+    match s.ToCharArray() with
+    | [| face ; suit |] -> parseFace face, Suit.Parse suit
+    | _ -> invalidArg "Card" s
+
+let twoHands (s :string) = 
+    let xs = s.Split(' ')
+    assert (xs.Length = 10)
+    xs.[..4] |> Array.map parseCard |> Array.sort |> Array.rev,
+    xs.[5..] |> Array.map parseCard |> Array.sort |> Array.rev
+
+//TRAINING DATA
+
 let testHands, testWinExpections = 
     [
         "5H 5C 6S 7S KD 2C 3S 8S 8D TD"
@@ -143,6 +159,8 @@ let testHands, testWinExpections =
     [ 2; 1; 2; 1; 1]
 
 assert (testHands |> List.map (twoHands >> compareHands) = testWinExpections)
+
+//REAL DATA
 
 let input = 
     (new System.Net.WebClient())
