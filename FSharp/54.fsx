@@ -23,7 +23,7 @@ let Ace = 14
 
 type Card = Face * Suit
 
-type Hand = Card[]
+type Hand = Card[]  // more practical than (Card * Card * Card * Card * Card)
 
 //RULES
 
@@ -174,6 +174,7 @@ input
 
 
 
-
-
-    
+//http://theburningmonk.com/2010/10/project-euler-problem-54-solution/
+//http://mantascode.com/c-project-euler-solution-to-problem-54/
+//http://siralansdailyramble.blogspot.com/2009/04/project-euler-54.html    
+//http://github.com/louisrli/project-euler/blob/master/p54.scala
