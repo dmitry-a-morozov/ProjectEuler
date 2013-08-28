@@ -5,7 +5,7 @@
 
 type Card = Face * Suit
 
-and Suit =     Spades | Diamonds | Clubs | Hearts
+and Suit = Spades | Diamonds | Clubs | Hearts
 
 //The cards are valued in the order:
 //2, 3, 4, 5, 6, 7, 8, 9, 10, Jack, Queen, King, Ace.
