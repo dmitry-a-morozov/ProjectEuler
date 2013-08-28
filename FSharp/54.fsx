@@ -1,16 +1,16 @@
 ﻿
 //TYPES
 
-type Suit = 
-    Spades | Diamonds | Clubs | Hearts
-    static member Parse = function
-        | 'S' -> Spades
-        | 'D' -> Diamonds
-        | 'C' -> Clubs
-        | 'H' -> Hearts
-        | c -> invalidArg "Suit" (string c)
+//In the card game poker...
 
-type Face = int
+type Card = Face * Suit
+
+and Suit =     Spades | Diamonds | Clubs | Hearts
+
+//The cards are valued in the order:
+//2, 3, 4, 5, 6, 7, 8, 9, 10, Jack, Queen, King, Ace.
+
+and Face = int
 
 [<Literal>] 
 let Jack = 11
@@ -21,132 +21,171 @@ let King = 13
 [<Literal>]
 let Ace = 14
 
-type Card = Face * Suit
-
-type Hand = Card[]  // more practical than (Card * Card * Card * Card * Card)
+// ... a hand consists of five cards ..
+type Hand = Card * Card * Card * Card * Card
 
 //RULES
 
-let (|OnePairs|_|) (hand : Hand) = 
-    match hand with
-    | [| (v1, _); (v2, _); x; y; z |]  
-    | [| x; (v1, _); (v2, _); y; z |] 
-    | [| x; y; (v1, _); (v2, _); z |] 
-    | [| x; y; z; (v1, _); (v2, _) |] 
-        when v1 = v2 -> Some(v1, (x, y, z))
+//High Card: Highest value card.
+let highCard x y = 
+    if x < y then 2
+    elif x > y then 1
+    else invalidOp (sprintf "Tie. First hand: %A. Second hand: %A" x y)
+
+//One Pair: Two cards of the same value.
+let (|OnePairs|_|) = function
+    | (f1, _), (f2, _), x, y, z 
+    | x, (f1, _), (f2, _), y, z  
+    | x, y, (f1, _), (f2, _), z  
+    | x, y, z, (f1, _), (f2, _)  
+        when f1 = f2 -> Some(f1, (x, y, z))
+    | hand -> None
+
+//Two Pairs: Two different pairs.
+let (|TwoPairs|_|) = function
+    | (f11, _), (f12, _), (f21, _), (f22, _), tail  
+    | (f11, _), (f12, _), (f21, _), tail, (f22, _)
+    | (f11, _), (f12, _), tail, (f21, _), (f22, _)
+    | (f11, _), tail, (f12, _), (f21, _), (f22, _)
+    | tail, (f11, _), (f12, _), (f21, _), (f22, _)
+        when f11 = f12 && f21 = f22 -> Some(f11, f21, tail)
     | _ -> None
 
-let (|TwoPairs|_|) (hand : Hand) = 
-    match hand with
-    | [| (v11, _); (v12, _); (v21, _); (v22, _); tail |]  
-    | [| (v11, _); (v12, _); tail; (v21, _); (v22, _) |]
-    | [| tail; (v11, _); (v12, _); (v21, _); (v22, _) |]
-        when v11 = v12 && v21 = v22 -> Some(v11, v21, tail)
+//Three of a Kind: Three cards of the same value.
+let (|ThreeOfAKind|_|) = function
+    | (f1, _), (f2, _), (f3, _), x, y 
+    | x, (f1, _), (f2, _), (f3, _), y 
+    | x, y, (f1, _), (f2, _), (f3, _) 
+        when f1 = f2 && f2 = f3 -> Some(f1, (x, y))
     | _ -> None
 
-let (|ThreeOfAKind|_|) (hand : Hand) = 
-    match hand with
-    | [| (v1, _); (v2, _); (v3, _); x; y |] 
-    | [| x; (v1, _); (v2, _); (v3, _); y |] 
-    | [| x; y; (v1, _); (v2, _); (v3, _) |] when v1 = v2 && v2 = v3 -> Some(v1, (x, y))
-    | _ -> None
-
-let (|FourOfAKind|_|) (hand : Hand) = 
-    match hand with
-    | [| (v1, _); (v2, _); (v3, _); (v4, _); tail |] 
-    | [| tail; (v1, _); (v2, _); (v3, _); (v4, _) |] when v1 = v2 && v2 = v3 && v3 = v4 -> Some(v1, tail)
-    | _ -> None
-
-let (|Straight|_|) (hand : Hand) = 
-    let consecutive(c1 : Card, c2 : Card) = 
-        match c1, c2 with
-        | (Ace, _), (King, _) -> true
-        | (King, _), (Queen, _) -> true
-        | (Queen, _), (Jack, _) -> true
+//Straight: All cards are consecutive values.
+let (|Straight|_|) (c1, c2, c3, c4, c5) = 
+    let consecutiveCards = function
+        | (Ace, _), (King, _) 
+        | (King, _), (Queen, _) 
+        | (Queen, _), (Jack, _) 
         | (Jack, _), (10, _) -> true
         | (x, _), (y, _) -> x - 1 = y 
 
-    if hand |> Seq.pairwise |> Seq.map consecutive |> Seq.reduce (&&) then Some() else None
+    if Seq.forall consecutiveCards [(c1, c2); (c2, c3); (c3, c4); (c4, c5)]
+    then Some()
+    else  None
 
-let (|Flush|_|) (hand : Hand) = if hand |> Array.map snd |> Seq.distinct |> Seq.length = 1 then Some() else None
+//Flush: All cards of the same suit.
+let (|Flush|_|) ((_, s1), (_, s2), (_, s3), (_, s4), (_, s5)) = 
+    if s1 = s2 && s2 = s3 && s3 = s4 && s4 = s5 
+    then Some() 
+    else None
 
+//Full House: Three of a kind and a pair.
 let (|FullHouse|_|) = function 
-    | ThreeOfAKind(three, ((x, _), (y, _))) when x = y -> Some(three, x) 
+    | ThreeOfAKind(three, ((f1, _), (f2, _))) 
+        when f1 = f2 -> Some(three, f1) 
     | _ -> None
 
+//Four of a Kind: Four cards of the same value.
+let (|FourOfAKind|_|) = function
+    | (f1, _), (f2, _), (f3, _), (f4, _), tail 
+    | tail, (f1, _), (f2, _), (f3, _), (f4, _) 
+        when f1 = f2 && f2 = f3 && f3 = f4 -> Some(f1, tail)
+    | _ -> None
+
+//Straight Flush: All cards are consecutive values of same suit.
 let (|StraightFlush|_|) = function 
     | Straight & Flush -> Some() 
     | _ -> None
 
+//Royal Flush: Ten, Jack, Queen, King, Ace, in same suit.
 let (|RoyalFlush|_|) = function 
-    | StraightFlush & [|(Ace, _); _|] -> Some() 
+    | ((Ace, _), _, _, _, _) & StraightFlush -> Some() 
     | _ -> None
 
-let compareCards t1 t2 = 
-    if t1 < t2 then 2
-    elif t1 > t2 then 1
-    else invalidOp (sprintf "Tie. First hand: %A. Second hand: %A" t1 t2)
+(*
+If two players have the same ranked hands 
+then the rank made up of the highest value wins; 
+for example, a pair of eights beats a pair of fives. 
+But if two ranks tie, for example, 
+both players have a pair of queens, 
+then highest cards in each hand are compared; 
+if the highest cards tie then 
+the next highest cards are compared, and so on.
+*)
 
 let compareHands(first, second) =
     match first, second with
-    | RoyalFlush, RoyalFlush -> compareCards first second
+    | RoyalFlush, RoyalFlush -> highCard first second
     | RoyalFlush, _ -> 1
     | _, RoyalFlush -> 2
 
-    | StraightFlush, StraightFlush -> compareCards first second
+    | StraightFlush, StraightFlush -> highCard first second
     | StraightFlush, _ -> 1 
     | _, StraightFlush -> 2
 
-    | FourOfAKind x, FourOfAKind y -> compareCards x y
+    | FourOfAKind x, FourOfAKind y -> highCard x y
     | FourOfAKind _, _ -> 1
     | _, FourOfAKind _ -> 2
 
-    | FullHouse x, FullHouse y -> compareCards x y
+    | FullHouse x, FullHouse y -> highCard x y
     | FullHouse _, _ -> 1 
     | _, FullHouse _ -> 2
 
-    | Flush, Flush -> compareCards first second
+    | Flush, Flush -> highCard first second
     | Flush, _ -> 1 
     | _, Flush -> 2
 
-    | Straight, Straight -> compareCards first second
+    | Straight, Straight -> highCard first second
     | Straight, _ -> 1 
     | _, Straight -> 2
 
-    | ThreeOfAKind x, ThreeOfAKind y -> compareCards x y
+    | ThreeOfAKind x, ThreeOfAKind y -> highCard x y
     | ThreeOfAKind _, _ -> 1
     | _, ThreeOfAKind _ -> 2
 
-    | TwoPairs x, TwoPairs y -> compareCards x y
+    | TwoPairs x, TwoPairs y -> highCard x y
     | TwoPairs _, _ -> 1
     | _, TwoPairs _ -> 2
 
-    | OnePairs x, OnePairs y -> compareCards x y
+    | OnePairs x, OnePairs y -> highCard x y
     | OnePairs _, _ -> 1
     | _, OnePairs _ -> 2
 
-    | _ -> compareCards first second
+    | _ -> highCard first second
 
 //PLUMBING
 
 let parseFace = function
-    | 'A' -> Ace | 'K' -> King | 'Q' -> Queen | 'J' -> Jack
+    | 'A' -> Ace | 'K' -> King | 'Q' -> Queen | 'J' -> Jack 
     | 'T' -> 10
     | x when x >= '2' && x <= '9' -> int x - int '0'
     | c -> invalidArg "Face" (string c)
 
+let parseSuit = function
+    | 'S' -> Spades
+    | 'D' -> Diamonds
+    | 'C' -> Clubs
+    | 'H' -> Hearts
+    | c -> invalidArg "Suit" (string c)
+
 let parseCard (s : string) = 
     match s.ToCharArray() with
-    | [| face ; suit |] -> parseFace face, Suit.Parse suit
+    | [| face ; suit |] -> parseFace face, parseSuit suit
     | _ -> invalidArg "Card" s
 
-let twoHands (s :string) = 
+let parseTwoHands (s : string) = 
+    let fiveItemsArrayToHand xs = 
+        xs 
+        |> Array.map parseCard 
+        |> Array.sort 
+        |> fun xs -> xs.[4], xs.[3], xs.[2], xs.[1], xs.[0]
+
     let xs = s.Split(' ')
     assert (xs.Length = 10)
-    xs.[..4] |> Array.map parseCard |> Array.sort |> Array.rev,
-    xs.[5..] |> Array.map parseCard |> Array.sort |> Array.rev
+    let first = fiveItemsArrayToHand xs.[..4]
+    let second = fiveItemsArrayToHand xs.[5..]
+    first, second
 
-//TRAINING DATA
+//TRAINING SET
 
 let testHands, testWinExpections = 
     [
@@ -158,9 +197,9 @@ let testHands, testWinExpections =
     ],
     [ 2; 1; 2; 1; 1]
 
-assert (testHands |> List.map (twoHands >> compareHands) = testWinExpections)
+assert (testHands |> List.map (parseTwoHands >> compareHands) = testWinExpections)
 
-//REAL DATA
+//VALIDATION SET
 
 let input = 
     (new System.Net.WebClient())
@@ -168,13 +207,7 @@ let input =
      .Split([|'\n'|], System.StringSplitOptions.RemoveEmptyEntries)
 
 input
-|> Array.map (twoHands >> compareHands)
+|> Array.map (parseTwoHands >> compareHands)
 |> Array.filter ((=) 1)
 |> Array.sum
 
-
-
-//http://theburningmonk.com/2010/10/project-euler-problem-54-solution/
-//http://mantascode.com/c-project-euler-solution-to-problem-54/
-//http://siralansdailyramble.blogspot.com/2009/04/project-euler-54.html    
-//http://github.com/louisrli/project-euler/blob/master/p54.scala
